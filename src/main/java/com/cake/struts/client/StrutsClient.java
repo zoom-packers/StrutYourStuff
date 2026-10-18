@@ -10,80 +10,85 @@ import com.cake.struts.content.shape.StrutInteractionHandler;
 import com.cake.struts.internal.microliner.Microliner;
 import com.cake.struts.internal.util.ChunkedMap;
 import com.cake.struts.internal.util.LevelSafeStorage;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.event.client.player.ClientPreAttackCallback;
-import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import com.cake.struts.neoforge.client.LevelRenderContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.ResourceManager;
-
-import java.util.Collection;
-import java.util.Set;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ExtractBlockOutlineRenderStateEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 
 public final class StrutsClient {
 
     private StrutsClient() {
     }
 
-    public static void init() {
+    // NeoForge: Fabric API's client events, mapped to NeoForge events
+    public static void init(final IEventBus modBus) {
         StrutModelManipulator.prepareSegmentModels();
         StrutsFlywheelCompatLoader.bind(new FlywheelCompat());
         StrutBlockEntity.CLIENT_UPDATE_LISTENER = StrutInteractionHandler::updateOutlineShapes;
         StrutBlockEntity.CLIENT_REMOVE_LISTENER = StrutInteractionHandler::removeOutlineShapes;
 
-        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new IdentifiableResourceReloadListener() {
-            @Override
-            public Identifier getFabricId() {
-                return Identifier.fromNamespaceAndPath(StrutYourStuff.MOD_ID, "strut_meshes");
-            }
+        modBus.addListener(AddClientReloadListenersEvent.class, event -> event.addListener(
+                Identifier.fromNamespaceAndPath(StrutYourStuff.MOD_ID, "strut_meshes"),
+                (ResourceManagerReloadListener) manager -> StrutModelManipulator.invalidateMeshes()));
 
-            @Override
-            public Collection<Identifier> getFabricDependencies() {
-                return Set.of();
-            }
-
-            @Override
-            public java.util.concurrent.CompletableFuture<Void> reload(SharedState sharedState,
-                                                                       java.util.concurrent.Executor backgroundExecutor,
-                                                                       PreparationBarrier barrier,
-                                                                       java.util.concurrent.Executor gameExecutor) {
-                return barrier.wait(null).thenRunAsync(StrutModelManipulator::invalidateMeshes, gameExecutor);
-            }
-        });
-
-        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Pre.class, event -> {
+            final Minecraft client = Minecraft.getInstance();
             Microliner.get().tick();
             if (client.player != null) {
                 StrutPlacementEffects.tick(client.player);
             }
         });
-        ClientTickEvents.END_CLIENT_TICK.register(StrutInteractionHandler::onClientTick);
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class,
+                event -> StrutInteractionHandler.onClientTick(Minecraft.getInstance()));
 
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+        NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> {
             StrutInteractionHandler.clearSelection();
-            final net.minecraft.client.multiplayer.ClientLevel level = client.level;
+            final ClientLevel level = Minecraft.getInstance().level;
             if (level != null) {
                 LevelSafeStorage.clearAll(level);
                 ChunkedMap.unbindAll(level);
             }
         });
-        ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> StrutInteractionHandler.clearSelection());
-        ClientChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> ChunkedMap.evictChunk(level, chunk.getPos()));
+        NeoForge.EVENT_BUS.addListener(LevelEvent.Load.class, event -> {
+            if (event.getLevel() instanceof ClientLevel) {
+                StrutInteractionHandler.clearSelection();
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(ChunkEvent.Unload.class, event -> {
+            if (event.getLevel() instanceof final ClientLevel level) {
+                ChunkedMap.evictChunk(level, event.getChunk().getPos());
+            }
+        });
 
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
+        NeoForge.EVENT_BUS.addListener(SubmitCustomGeometryEvent.class, event -> {
+            final LevelRenderContext context = new LevelRenderContext(
+                    event.getLevelRenderState(), event.getSubmitNodeCollector(), event.getPoseStack());
             Microliner.get().render(context);
             StrutInteractionHandler.renderSelection(context);
         });
 
-        LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hitResult) ->
-                StrutInteractionHandler.selectedShape == null);
+        NeoForge.EVENT_BUS.addListener(ExtractBlockOutlineRenderStateEvent.class, event -> {
+            if (StrutInteractionHandler.selectedShape != null) {
+                event.setCanceled(true);
+            }
+        });
 
-        ClientPreAttackCallback.EVENT.register((client, player, clickCount) ->
-                StrutInteractionHandler.onClientAttack());
+        NeoForge.EVENT_BUS.addListener(InputEvent.InteractionKeyMappingTriggered.class, event -> {
+            if (event.isAttack() && StrutInteractionHandler.onClientAttack()) {
+                event.setSwingHand(false);
+                event.setCanceled(true);
+            }
+        });
     }
 }

@@ -1,10 +1,9 @@
 package com.cake.struts.content;
 
-import com.cake.struts.StrutYourStuff;
 import com.cake.struts.registry.StrutItemTags;
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.minecraft.resources.Identifier;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -15,18 +14,19 @@ import java.util.WeakHashMap;
 
 public final class StrutUseGuard {
 
-    private static final Identifier PHASE = Identifier.fromNamespaceAndPath(StrutYourStuff.MOD_ID, "strut_use_guard");
     private static final Map<Player, Integer> BREAK_TICKS = new WeakHashMap<>();
 
     private StrutUseGuard() {
     }
 
+    // NeoForge: Fabric's early UseBlockCallback phase becomes a HIGHEST-priority RightClickBlock listener
     public static void register() {
-        UseBlockCallback.EVENT.addPhaseOrdering(PHASE, Event.DEFAULT_PHASE);
-        UseBlockCallback.EVENT.register(PHASE, (player, level, hand, hitResult) ->
-                !level.isClientSide() && hand == InteractionHand.MAIN_HAND && consumeBreak(player)
-                        ? InteractionResult.FAIL
-                        : InteractionResult.PASS);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, PlayerInteractEvent.RightClickBlock.class, event -> {
+            if (!event.getLevel().isClientSide() && event.getHand() == InteractionHand.MAIN_HAND && consumeBreak(event.getEntity())) {
+                event.setCancellationResult(InteractionResult.FAIL);
+                event.setCanceled(true);
+            }
+        });
     }
 
     public static void markBreak(final ServerPlayer player) {

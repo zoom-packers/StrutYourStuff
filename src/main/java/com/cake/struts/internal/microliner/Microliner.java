@@ -2,7 +2,7 @@ package com.cake.struts.internal.microliner;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.cake.struts.compat.sable.ClientSubLevelAccess;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import com.cake.struts.neoforge.client.LevelRenderContext;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;

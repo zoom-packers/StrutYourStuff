@@ -1,0 +1,47 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/chaevsfe/StrutYourStuff/issues"
+
+[[mods]]
+modId = "struts"
+version = "${version}"
+displayName = "Create Fly: Strut Your Stuff (NeoForge)"
+iconFile = "assets/struts/icon.png"
+authors = "Cake (Strut Your Stuff); chaevsfe (Create Fly port); Zoom Packers (NeoForge 26.3 port)"
+displayURL = "https://github.com/chaevsfe/StrutYourStuff"
+description = '''
+Girder strut library for blocks that span two positions, for Create Fly on NeoForge 26.3.
+Unofficial: do not report issues from this build to the Strut Your Stuff or Create Fly developers.
+'''
+
+[[mixins]]
+config = "struts.client.mixins.json"
+
+[[dependencies.struts]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neo_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.struts]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.struts]]
+modId = "create"
+type = "required"
+versionRange = "${create_version_range}"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.struts]]
+modId = "sable"
+type = "incompatible"
+reason = "The Create Fly port of Strut Your Stuff replaces Sable support with inert stubs"
+versionRange = "[0,)"
+side = "BOTH"

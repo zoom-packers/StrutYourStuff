@@ -20,8 +20,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -32,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 public class StrutModelManipulator {
 
     private static final Map<StrutModelType, StrutSegmentMesh> segmentMeshes = new HashMap<>();
@@ -147,7 +144,7 @@ public class StrutModelManipulator {
             );
         }
         return new StrutQuad(vertices, quad.materialInfo().sprite(), quad.direction(),
-                quad.materialInfo().tintIndex(), quad.materialInfo().shade());
+                quad.materialInfo().tintIndex(), quad.materialInfo().shadeDirectionOverride() == null); // 26.3: shade became a nullable override
     }
 
     public static void invalidateMeshes() {

@@ -23,3 +23,10 @@ The classes under com.cake.struts.compat.sable are inert stubs written for this 
 They reproduce only the method signatures Strut Your Stuff calls and contain no code
 from Sable Companion (dev.ryanhcode.sable); the real mod is declared incompatible in
 fabric.mod.json.
+
+NeoForge 26.3 port (Zoompack 5)
+
+Branch zp5/26.3 is a further modification by Zoom Packers: it ports this Fabric / Create
+Fly 26.2 build to NeoForge 26.3.0.89 and Minecraft 26.3, against Zoompack 5's NeoForge
+port of Create Fly. It is unofficial and not supported by the upstream authors or by
+chaevsfe. The changes are listed in PORTING.md and are under the same MIT licence.

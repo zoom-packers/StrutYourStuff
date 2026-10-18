@@ -4,6 +4,7 @@ import com.cake.struts.content.block.StrutBlock;
 import com.cake.struts.content.block.StrutBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -57,7 +58,7 @@ public class GirderStrutStructureBlock extends Block implements GirderStrutShape
     }
 
     @Override
-    protected void spawnDestroyParticles(final @NotNull Level level, final @NotNull Player player, final @NotNull BlockPos pos, final @NotNull BlockState state) {
+    public void spawnDestroyByEntityParticles(final @NotNull Level level, final @Nullable Entity player, final @NotNull BlockPos pos, final @NotNull BlockState state) { // 26.3: was spawnDestroyParticles(level, player, pos, state)
         //Find the first block state of anchors targeting this block (otherwise do nothing)
         for (final ConnectionKey key : Set.copyOf(GirderStrutStructureShapes.getConnectionsAt(level, pos))) {
             final BlockState anchorState = level.getBlockState(key.a());

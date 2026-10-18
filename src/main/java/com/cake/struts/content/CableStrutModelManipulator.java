@@ -7,8 +7,6 @@ import com.cake.struts.content.mesh.StrutSegmentMesh;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.cake.struts.content.mesh.StrutQuad;
 import net.minecraft.world.phys.Vec3;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -21,7 +19,6 @@ import java.util.List;
  * Handles baking of cable strut connections into {@link StrutQuad} lists.
  * Stems from {@link StrutModelManipulator} to separate cable-specific logic.
  */
-@Environment(EnvType.CLIENT)
 public class CableStrutModelManipulator {
 
     private static final double MIN_CABLE_STEP = 0.1;

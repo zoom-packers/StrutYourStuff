@@ -1,53 +1,70 @@
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
+// NeoForge 26.3 build for Zoompack 5, against ZP5's NeoForge port of Create Fly (see PORTING.md).
 plugins {
-    id("net.fabricmc.fabric-loom") version "1.16-SNAPSHOT"
-    `maven-publish`
+    `java-library`
+    id("net.neoforged.moddev") version "2.0.148"
 }
 
 group = property("maven_group") as String
-version = "${property("mod_version")}+fly-mc${property("mc_line")}"
+version = "${property("mod_version")}+neoforge-${property("minecraft_version")}-${property("port_build")}"
 
 base {
     archivesName.set(property("archives_base_name") as String)
 }
 
-repositories {
-    mavenCentral()
-    maven("https://maven.fabricmc.net/")
-    maven("https://api.modrinth.com/maven") {
-        content { includeGroup("maven.modrinth") }
-    }
-    flatDir {
-        dirs("libs", "../../create-rei/CreateReiViewer-Fly/build/libs")
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+val createJar = files(property("create_jar") as String)
+
+sourceSets {
+    main {
+        // Fabric entrypoints and metadata, replaced by com/cake/struts/neoforge/** (see PORTING.md)
+        java.exclude("com/cake/struts/fabric/**")
+        resources.exclude("fabric.mod.json")
     }
 }
 
-val recipeViewer = ":CreateReiViewer:${property("createreiviewer_version")}"
+neoForge {
+    version = property("neo_version") as String
 
-loom {
+    // Create's access transformer and interface injections, so code that uses them compiles
+    accessTransformers.from(file("libs/create-accesstransformer.cfg"))
+    interfaceInjectionData.from(file("libs/create-interfaces.json"))
+
     mods {
         create("struts") {
             sourceSet(sourceSets.main.get())
         }
     }
+
+    runs {
+        create("client") {
+            client()
+        }
+        create("server") {
+            server()
+            programArgument("--nogui")
+        }
+        create("gameTestServer") {
+            type = "gameTestServer"
+            systemProperty("neoforge.enabledGameTestNamespaces", "struts")
+        }
+        configureEach {
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:${property("minecraft_version")}")
-    implementation("net.fabricmc:fabric-loader:${property("fabric_loader_version")}")
-    implementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
-    implementation("maven.modrinth:create-fly:${property("create_fabric_version")}")
-
+    compileOnly(createJar)
+    // Create is loaded as a mod in the dev runs
+    runtimeOnly(createJar)
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
-
-    include(recipeViewer)
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
     withSourcesJar()
 }
 
@@ -61,19 +78,21 @@ tasks.withType<AbstractCopyTask>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-tasks.processResources {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    val modMetadata = mapOf(
+// Expands ${...} placeholders in src/main/templates (neoforge.mods.toml) from gradle.properties
+val generateModMetadata = tasks.register<ProcessResources>("generateModMetadata") {
+    val props = mapOf(
         "version" to project.version.toString(),
-        "minecraft_dependency_version" to project.property("minecraft_dependency_version") as String,
-        "fabric_loader_version" to project.property("fabric_loader_version") as String,
-        "create_fabric_version_range" to project.property("create_fabric_version_range") as String,
+        "minecraft_version_range" to project.property("minecraft_version_range") as String,
+        "neo_version_range" to project.property("neo_version_range") as String,
+        "create_version_range" to project.property("create_version_range") as String,
     )
-    inputs.properties(modMetadata)
-    filesMatching("fabric.mod.json") {
-        expand(modMetadata)
-    }
+    inputs.properties(props)
+    expand(props)
+    from("src/main/templates")
+    into(layout.buildDirectory.dir("generated/sources/modMetadata"))
 }
+sourceSets.main.get().resources.srcDir(generateModMetadata)
+neoForge.ideSyncTask(generateModMetadata)
 
 tasks.jar {
     from("LICENSE")
@@ -94,7 +113,6 @@ val allowedJarPrefixes = listOf(
     "NOTICE",
     "struts.mixins.json",
     "struts.client.mixins.json",
-    "fabric.mod.json",
 )
 
 afterEvaluate {

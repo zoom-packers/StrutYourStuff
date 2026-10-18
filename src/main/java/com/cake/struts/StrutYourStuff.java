@@ -3,14 +3,15 @@ package com.cake.struts;
 import com.cake.struts.content.structure.GirderStrutStructureShapes;
 import com.cake.struts.internal.util.ChunkedMap;
 import com.cake.struts.internal.util.LevelSafeStorage;
-import com.cake.struts.network.StrutPackets;
+import com.cake.struts.content.StrutUseGuard;
 import com.cake.struts.registry.StrutBlocks;
-import com.cake.struts.registry.StrutDataComponents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,25 +28,35 @@ public final class StrutYourStuff {
         StrutBlocks.register();
     }
 
+    // NeoForge: data components and packets are registered from NeoForge events (neoforge/StrutsNeoForge)
     public static void init() {
-        StrutDataComponents.register();
-        StrutPackets.register();
+        StrutUseGuard.register();
         registerServerEvents();
     }
 
+    // NeoForge: Fabric API's server events, mapped to NeoForge's game bus. Fabric's server-only events skip client
+    // levels, which NeoForge's fire for too.
     private static void registerServerEvents() {
-        ServerLevelEvents.UNLOAD.register((server, level) -> {
-            LevelSafeStorage.clearAll(level);
-            ChunkedMap.unbindAll(level);
-        });
-        ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> ChunkedMap.evictChunk(level, chunk.getPos()));
-        ServerTickEvents.END_LEVEL_TICK.register(GirderStrutStructureShapes::flushQueuedRestores);
-        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) -> {
-            if (level.isClientSide()) {
-                return true;
+        NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, event -> {
+            if (event.getLevel() instanceof final Level level && !level.isClientSide()) {
+                LevelSafeStorage.clearAll(level);
+                ChunkedMap.unbindAll(level);
             }
-            queueStructureRestore(level, pos, state);
-            return true;
+        });
+        NeoForge.EVENT_BUS.addListener(ChunkEvent.Unload.class, event -> {
+            if (event.getLevel() instanceof final Level level && !level.isClientSide()) {
+                ChunkedMap.evictChunk(level, event.getChunk().getPos());
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(LevelTickEvent.Post.class, event -> {
+            if (!event.getLevel().isClientSide()) {
+                GirderStrutStructureShapes.flushQueuedRestores(event.getLevel());
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(BreakBlockEvent.class, event -> {
+            if (!event.getLevel().isClientSide() && event.getLevel() instanceof final Level level) {
+                queueStructureRestore(level, event.getPos(), event.getState());
+            }
         });
     }
 

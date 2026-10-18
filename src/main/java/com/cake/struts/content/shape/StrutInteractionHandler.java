@@ -25,6 +25,7 @@ import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -33,10 +34,8 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.cake.struts.neoforge.client.LevelRenderContext;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
@@ -49,7 +48,6 @@ import java.util.Map;
  * updated connection data on the client, and {@link #removeOutlineShapes} when
  * the block entity is removed.
  */
-@Environment(EnvType.CLIENT)
 public class StrutInteractionHandler {
 
     private static final LevelSafeStorage<LevelStrutOutlineStore> STORES =
@@ -135,9 +133,9 @@ public class StrutInteractionHandler {
         if (!mc.player.isShiftKeyDown() || !isActive(mc.player.getMainHandItem())) {
             return false;
         }
-        ClientPlayNetworking.send(new BreakStrutPacket(selectedKey));
+        ClientPacketDistributor.sendToServer(new BreakStrutPacket(selectedKey));
         resetBreakProgress(mc.level, mc.player);
-        mc.player.swing(InteractionHand.MAIN_HAND);
+        mc.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         return true;
     }
 
@@ -282,7 +280,7 @@ public class StrutInteractionHandler {
                     level.getRandom(),
                     currentBreakPos
             ));
-            player.swing(InteractionHand.MAIN_HAND);
+            player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         }
 
         breakTicks++;
@@ -309,7 +307,7 @@ public class StrutInteractionHandler {
         }
 
         if (breakProgress >= 1.0F) {
-            ClientPlayNetworking.send(new BreakStrutPacket(key));
+            ClientPacketDistributor.sendToServer(new BreakStrutPacket(key));
             level.levelEvent(player, 2001, currentBreakPos, Block.getId(blockState));
             resetBreakProgress(level, player);
         }

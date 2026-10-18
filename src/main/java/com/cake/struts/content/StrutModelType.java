@@ -1,7 +1,5 @@
 package com.cake.struts.content;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -33,7 +31,6 @@ public record StrutModelType(Identifier segmentModelLocation, Identifier capText
         this(segmentModelLocation, capTexture, 8, 12, DEFAULT_VOXEL_SHAPE_RESOLUTION, renderLayer);
     }
 
-    @Environment(EnvType.CLIENT)
     public ChunkSectionLayer getRenderLayer() {
         return switch (this.renderLayer) {
             case SOLID -> ChunkSectionLayer.SOLID;
@@ -42,7 +39,6 @@ public record StrutModelType(Identifier segmentModelLocation, Identifier capText
         };
     }
 
-    @Environment(EnvType.CLIENT)
     public RenderType getRenderType() {
         return switch (this.renderLayer) {
             case SOLID -> RenderTypes.solidMovingBlock();

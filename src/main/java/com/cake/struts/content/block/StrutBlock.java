@@ -58,7 +58,7 @@ public abstract class StrutBlock extends Block implements SimpleWaterloggedBlock
     }
 
     public StrutBlock(final Properties properties, final StrutModelType modelType, final @Nullable CableStrutInfo cableRenderInfo) {
-        super(properties.pushReaction(PushReaction.NORMAL));
+        super(properties.pushReaction(PushReaction.PUSH_PULL));
         this.registerDefaultState(this.defaultBlockState().setValue(FACING, Direction.UP).setValue(WATERLOGGED, false));
         this.modelType = modelType;
         this.cableRenderInfo = cableRenderInfo;
@@ -76,7 +76,7 @@ public abstract class StrutBlock extends Block implements SimpleWaterloggedBlock
     protected abstract BlockEntityType<? extends StrutBlockEntity> getStrutBlockEntityType();
 
     @Override
-    protected @NotNull BlockState rotate(final @NotNull BlockState state, final @NotNull Rotation rotation) {
+    public @NotNull BlockState rotate(final @NotNull BlockState state, final @NotNull Rotation rotation) {
         return super.rotate(state, rotation)
                 .setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
